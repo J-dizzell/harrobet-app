@@ -5,20 +5,15 @@ from passlib.context import CryptContext
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 
-# ── Settings ──────────────────────────────────────────────
 SECRET_KEY = "change-this-to-a-long-random-string-in-production"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-# ── Setup ─────────────────────────────────────────────────
 app = FastAPI()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=12)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-# ── Fake database (we'll replace this with a real one later)
 fake_users_db = {}
 
-# ── Models ────────────────────────────────────────────────
 class UserRegister(BaseModel):
     email: str
     password: str
@@ -27,8 +22,9 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
-# ── Helper functions ──────────────────────────────────────
 def hash_password(password: str):
+    if len(password.encode('utf-8')) > 72:
+        raise HTTPException(status_code=400, detail="Password must be 72 characters or less")
     return pwd_context.hash(password)
 
 def verify_password(plain_password, hashed_password):
@@ -50,7 +46,6 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-# ── Routes ────────────────────────────────────────────────
 @app.get("/")
 def read_root():
     return {"message": "Hello from Azure!"}
